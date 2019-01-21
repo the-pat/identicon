@@ -4,6 +4,7 @@ defmodule Identicon do
     |> hash_input()
     |> pick_color()
     |> build_grid()
+    |> filter_odd_squares()
   end
 
   @doc """
@@ -45,19 +46,23 @@ defmodule Identicon do
 
   ## Examples
 
-      iex> image = %Identicon.Image{hex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}
+      iex> image = %Identicon.Image{hex: [1, 2, 3, 4, 5, 6]}
       iex> Identicon.build_grid(image)
       %Identicon.Image{
         color: nil,
-        grid: [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13, 14, 15]],
-        hex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        grid: [{1, 0}, {2, 1}, {3, 2}, {2, 3}, {1, 4},
+          {4, 5}, {5, 6}, {6, 7}, {5, 8}, {4, 9}],
+        hex: [1, 2, 3, 4, 5, 6]
       }
 
   """
   def build_grid(%Identicon.Image{hex: hex_list} = image) do
-    grid = hex_list
-    |> Enum.chunk_every(3, 3, :discard)
-    |> Enum.map(fn row -> mirror_row(row) end)
+    grid =
+      hex_list
+      |> Enum.chunk_every(3, 3, :discard)
+      |> Enum.map(&mirror_row/1)
+      |> List.flatten()
+      |> Enum.with_index()
 
     %Identicon.Image{image | grid: grid}
   end
@@ -74,5 +79,22 @@ defmodule Identicon do
   def mirror_row(row) do
     [first, second | _] = row
     row ++ [second, first]
+  end
+
+  @doc """
+    Remove all of the odd valued squares from the grid
+
+  ## Examples
+
+      iex> image = %Identicon.Image{grid: [{1, 1}, {2, 2}]}
+      iex> Identicon.filter_odd_squares(image)
+      %Identicon.Image{color: nil, grid: [{2, 2}], hex: nil}
+  """
+  def filter_odd_squares(%Identicon.Image{grid: grid} = image) do
+    filtered_grid =
+      grid
+      |> Enum.filter(fn {number, _} -> rem(number, 2) == 0 end)
+
+    %Identicon.Image{image | grid: filtered_grid}
   end
 end
